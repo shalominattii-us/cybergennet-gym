@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 from core.models.evaluation import EvaluationRun, CompositeScore, EvaluatorType
 from core.models.drill import DrillCapability
 from core.providers import get_provider, ModelProvider
+from core.evaluator_free import get_free_evaluator
 from core.events import emit_audit
 
 logger = structlog.get_logger()
@@ -154,6 +155,17 @@ async def evaluate(req: EvaluateRequest):
 
     # Always compute deterministic scores
     det_result = _deterministic_score(req.drill_data)
+    
+    # Free evaluator (built-in, no API needed)
+    free_eval = get_free_evaluator()
+    free_result = free_eval.evaluate(
+        capability=DrillCapability(req.drill_data.get("capability", "PRECISION")),
+        raw_score=det_result["score"],
+        metrics=req.drill_data.get("metrics", {}),
+        athlete_id=req.athlete_id,
+        load_level=req.drill_data.get("load_level", 1),
+    )
+    free_eval.record_result(req.athlete_id, req.drill_data.get("capability", "PRECISION"), free_result["score"], req.drill_data.get("metrics", {}))
 
     # Try LLM judge if provider is available
     llm_score = None
@@ -173,18 +185,19 @@ async def evaluate(req: EvaluateRequest):
             logger.warning("LLM evaluation failed", error=str(e))
             llm_score = None
 
-    final_score = llm_score if llm_score is not None else det_result["score"]
-    confidence = 0.85 if llm_score is not None else det_result["confidence"]
+    final_score = llm_score if llm_score is not None else free_result["score"]
+    confidence = free_result["confidence"]
 
     eval_run = EvaluationRun(
         run_id=req.run_id,
         athlete_id=req.athlete_id,
         evaluator_type=EvaluatorType.DETERMINISTIC if llm_score is None else EvaluatorType.LLM_JUDGE,
-        evaluator_id="primary-evaluator",
+        evaluator_id="free-evaluator" if llm_score is None else "llm-judge",
         evaluator_version="1.0.0",
         overall_score=round(final_score, 4),
-        objective_metrics=det_result["sub_scores"],
+        objective_metrics={**det_result["sub_scores"], **free_result["sub_scores"]},
         confidence_score=round(confidence, 4),
+        notes=free_result["reasoning"],
     )
     _evaluations[eval_run.evaluation_id] = eval_run
 
