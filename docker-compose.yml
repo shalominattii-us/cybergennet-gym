@@ -1,0 +1,130 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cybergen
+      POSTGRES_PASSWORD: cybergen
+      POSTGRES_DB: cybergennet
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cybergen -d cybergennet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://cybergen:cybergen@postgres:5432/cybergennet
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             python -m apps.api.main"
+    volumes:
+      - .:/app
+
+  gym:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.gym.service:app --host 0.0.0.0 --port 8001
+    volumes:
+      - .:/app
+
+  evaluator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.evaluator.service:app --host 0.0.0.0 --port 8002
+    volumes:
+      - .:/app
+
+  credentials:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.credentials.service:app --host 0.0.0.0 --port 8003
+    volumes:
+      - .:/app
+
+  genetic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.genetic.service:app --host 0.0.0.0 --port 8004
+    volumes:
+      - .:/app
+
+  arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.arena.service:app --host 0.0.0.0 --port 8005
+    volumes:
+      - .:/app
+
+  treasury:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.treasury.service:app --host 0.0.0.0 --port 8006
+    volumes:
+      - .:/app
+
+  sovereign:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn apps.sovereign.service:app --host 0.0.0.0 --port 8007
+    volumes:
+      - .:/app
+
+volumes:
+  pgdata:
