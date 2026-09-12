@@ -5,3 +5,13 @@ cybergennet.egg-info/SOURCES.txt
 cybergennet.egg-info/dependency_links.txt
 cybergennet.egg-info/requires.txt
 cybergennet.egg-info/top_level.txt
+tests/test_arena.py
+tests/test_athlete.py
+tests/test_constitutional.py
+tests/test_credentials.py
+tests/test_drill.py
+tests/test_evaluation.py
+tests/test_exchange.py
+tests/test_genetic.py
+tests/test_sovereign.py
+tests/test_treasury.py
