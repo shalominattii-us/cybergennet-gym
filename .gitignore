@@ -1,0 +1,5 @@
+# Local environments, bytecode and build output
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
